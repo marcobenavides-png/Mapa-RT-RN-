@@ -100,6 +100,25 @@ header{display:flex;align-items:center;gap:12px;padding:0 18px;background:var(--
 /* ZOOM INDICATOR */
 .zoom-in-msg{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(8,10,18,0.85);border:1px solid var(--bd2);border-radius:10px;padding:10px 18px;font-size:12px;color:var(--mu2);pointer-events:none;opacity:0;transition:opacity .3s;text-align:center;}
 .zoom-in-msg.show{opacity:1;}
+
+/* SEARCH */
+.search-wrap{padding:10px 14px;border-bottom:1px solid var(--bd);position:relative;}
+.search-input{width:100%;background:var(--bg);border:1.5px solid var(--bd2);border-radius:8px;padding:8px 34px 8px 12px;font-size:12px;color:var(--tx);font-family:var(--fn);outline:none;transition:border-color .15s;}
+.search-input:focus{border-color:var(--ac);}
+.search-input::placeholder{color:var(--mu);}
+.search-clear{position:absolute;right:22px;top:50%;transform:translateY(-50%);color:var(--mu);cursor:pointer;font-size:14px;display:none;}
+.search-results{position:absolute;left:14px;right:14px;top:100%;background:var(--s2);border:1px solid var(--bd2);border-radius:8px;z-index:100;max-height:220px;overflow-y:auto;display:none;box-shadow:0 8px 24px rgba(0,0,0,.4);}
+.search-results::-webkit-scrollbar{width:3px;}
+.search-results::-webkit-scrollbar-thumb{background:var(--bd2);}
+.sr-item{padding:9px 12px;cursor:pointer;border-bottom:1px solid var(--bd);transition:background .1s;display:flex;align-items:center;gap:8px;}
+.sr-item:last-child{border-bottom:none;}
+.sr-item:hover{background:var(--s3);}
+.sr-type{font-size:9px;font-family:var(--fm);padding:1px 6px;border-radius:4px;flex-shrink:0;}
+.sr-type.prov{background:rgba(59,130,246,0.2);color:#60a5fa;}
+.sr-type.cant{background:rgba(16,185,129,0.2);color:#34d399;}
+.sr-type.parr{background:rgba(167,139,250,0.2);color:#a78bfa;}
+.sr-name{font-size:12px;font-weight:500;color:var(--tx);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.sr-sub{font-size:10px;color:var(--mu);margin-left:auto;flex-shrink:0;}
 </style>
 </head>
 <style>
@@ -114,6 +133,25 @@ header{display:flex;align-items:center;gap:12px;padding:0 18px;background:var(--
 .lock-btn:hover{background:#2563eb;}
 .lock-error{font-size:12px;color:#ef4444;text-align:center;opacity:0;transition:opacity .2s;height:16px;}
 .lock-error.show{opacity:1;}
+
+/* SEARCH */
+.search-wrap{padding:10px 14px;border-bottom:1px solid var(--bd);position:relative;}
+.search-input{width:100%;background:var(--bg);border:1.5px solid var(--bd2);border-radius:8px;padding:8px 34px 8px 12px;font-size:12px;color:var(--tx);font-family:var(--fn);outline:none;transition:border-color .15s;}
+.search-input:focus{border-color:var(--ac);}
+.search-input::placeholder{color:var(--mu);}
+.search-clear{position:absolute;right:22px;top:50%;transform:translateY(-50%);color:var(--mu);cursor:pointer;font-size:14px;display:none;}
+.search-results{position:absolute;left:14px;right:14px;top:100%;background:var(--s2);border:1px solid var(--bd2);border-radius:8px;z-index:100;max-height:220px;overflow-y:auto;display:none;box-shadow:0 8px 24px rgba(0,0,0,.4);}
+.search-results::-webkit-scrollbar{width:3px;}
+.search-results::-webkit-scrollbar-thumb{background:var(--bd2);}
+.sr-item{padding:9px 12px;cursor:pointer;border-bottom:1px solid var(--bd);transition:background .1s;display:flex;align-items:center;gap:8px;}
+.sr-item:last-child{border-bottom:none;}
+.sr-item:hover{background:var(--s3);}
+.sr-type{font-size:9px;font-family:var(--fm);padding:1px 6px;border-radius:4px;flex-shrink:0;}
+.sr-type.prov{background:rgba(59,130,246,0.2);color:#60a5fa;}
+.sr-type.cant{background:rgba(16,185,129,0.2);color:#34d399;}
+.sr-type.parr{background:rgba(167,139,250,0.2);color:#a78bfa;}
+.sr-name{font-size:12px;font-weight:500;color:var(--tx);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.sr-sub{font-size:10px;color:var(--mu);margin-left:auto;flex-shrink:0;}
 </style>
 
 <div id="lock-screen">
@@ -169,6 +207,11 @@ if(sessionStorage.getItem('rt_auth')==='1'){
         <button class="rtab" data-r="vt" onclick="setRol('vt',this)">VT</button>
         <button class="rtab" data-r="art" onclick="setRol('art',this)">ART</button>
       </div>
+    </div>
+        <div class="search-wrap" style="position:relative;">
+      <input class="search-input" id="searchInput" placeholder="🔍  Buscar provincia, cantón o parroquia..." oninput="doSearch(this.value)" onkeydown="searchKeyDown(event)">
+      <span class="search-clear" id="searchClear" onclick="clearSearch()">✕</span>
+      <div class="search-results" id="searchResults"></div>
     </div>
     <div class="sb-blk" style="padding-bottom:7px;"><div class="sb-ttl">② Seleccionar persona</div></div>
     <div class="pscroll" id="pList"></div>
@@ -576,8 +619,131 @@ wrap.addEventListener('touchstart',e=>{if(e.touches.length===1){drag=true;dp={x:
 wrap.addEventListener('touchmove',e=>{if(drag&&e.touches.length===1){tx=e.touches[0].clientX-dp.x;ty=e.touches[0].clientY-dp.y;applyT();}},{passive:true});
 wrap.addEventListener('touchend',()=>drag=false);
 
+
+// ── SEARCH ────────────────────────────────────────────────────────────────────
+// Build search index from all geo data
+let searchIndex = [];
+
+function buildSearchIndex(){
+  searchIndex = [];
+  // Provinces
+  PROV_GEO.features.forEach(f=>{
+    const key = matchProv(f.properties.nombre);
+    const d = key ? PROV_DATA[key] : null;
+    searchIndex.push({
+      type:'prov', name:f.properties.nombre, key,
+      sub: d?.region||'', vt:d?.vt||[], art:d?.art||[],
+      jefVT:d?.jefVT||'', jefART:d?.jefART||''
+    });
+  });
+  // Cantons
+  CANT_GEO.features.forEach(f=>{
+    const key = matchProv(f.properties.nombre_prov);
+    const d = key ? PROV_DATA[key] : null;
+    searchIndex.push({
+      type:'cant', name:f.properties.nombre_canton,
+      sub:f.properties.nombre_prov, key,
+      vt:d?.vt||[], art:d?.art||[],
+      jefVT:d?.jefVT||'', jefART:d?.jefART||''
+    });
+  });
+  // Quito parishes
+  QUITO_GEO.features.forEach(f=>{
+    const p = f.properties;
+    searchIndex.push({
+      type:'parr', name:p.nombre, sub:p.zona||'',
+      key:'Pichincha', zona:p.zona,
+      vt:p.vt?[p.vt]:[], art:p.art&&p.art!=='—'?[p.art]:[],
+      jefVT:p.jefVT||'', jefART:p.jefART||''
+    });
+  });
+}
+
+function doSearch(q){
+  const results = document.getElementById('searchResults');
+  const clear   = document.getElementById('searchClear');
+  if(!q || q.length < 2){
+    results.style.display='none';
+    clear.style.display='none';
+    return;
+  }
+  clear.style.display='block';
+  const qn = norm(q);
+  const matches = searchIndex.filter(item => norm(item.name).includes(qn)).slice(0,8);
+  if(!matches.length){
+    results.style.display='block';
+    results.innerHTML='<div class="sr-item"><span class="sr-name" style="color:var(--mu)">Sin resultados</span></div>';
+    return;
+  }
+  const typeLabel = {prov:'Provincia', cant:'Cantón', parr:'Parroquia'};
+  results.innerHTML = matches.map((m,i)=>`
+    <div class="sr-item" onclick="selectSearchResult(${i})" data-idx="${i}">
+      <span class="sr-type ${m.type}">${typeLabel[m.type]}</span>
+      <span class="sr-name">${m.name}</span>
+      <span class="sr-sub">${m.sub}</span>
+    </div>`).join('');
+  results.style.display='block';
+  // Store matches for selection
+  results._matches = matches;
+}
+
+function selectSearchResult(idx){
+  const results = document.getElementById('searchResults');
+  const m = results._matches[idx];
+  if(!m) return;
+  
+  // Clear search UI
+  document.getElementById('searchInput').value = m.name;
+  results.style.display='none';
+  
+  // Update info panel
+  const vtColor  = m.vt.length  ? (VT_COL[m.vt[0]]  ||'#3b82f6') : '#6b7280';
+  const artColor = m.art.length ? (ART_COL[m.art[0]]||'#34d399') : '#6b7280';
+  const typeLabel = {prov:'Provincia', cant:'Cantón', parr:'Parroquia'};
+  
+  document.getElementById('iPanel').innerHTML=`
+    <div class="ip-name">${m.name} <span style="font-size:10px;font-weight:400;color:var(--mu)">${m.sub}</span></div>
+    <div class="ip-row"><span>VT</span><span class="ip-val" style="color:${vtColor}">${m.vt.join(', ')||'Pendiente'}</span></div>
+    ${m.jefVT?`<div class="ip-row"><span style="padding-left:10px;font-size:10px;color:var(--mu)">Jef. VT</span><span class="ip-val" style="font-size:10px">${m.jefVT}</span></div>`:''}
+    <div class="ip-row"><span>ART</span><span class="ip-val" style="color:${artColor}">${m.art.join(', ')||'Pendiente'}</span></div>
+    ${m.jefART?`<div class="ip-row"><span style="padding-left:10px;font-size:10px;color:var(--mu)">Jef. ART</span><span class="ip-val" style="font-size:10px">${m.jefART}</span></div>`:''}
+    ${m.zona?`<div class="ip-row"><span>Zona</span><span class="ip-val">${m.zona}</span></div>`:''}`;
+
+  // Highlight on map — select the person if one VT
+  if(m.vt.length===1 && personIdx[m.vt[0]]){
+    pickPerson(m.vt[0]);
+  } else if(m.key){
+    // Just dim others by selecting the province key
+    selPerson=null;
+    render();
+  }
+}
+
+function clearSearch(){
+  document.getElementById('searchInput').value='';
+  document.getElementById('searchResults').style.display='none';
+  document.getElementById('searchClear').style.display='none';
+  resetAll();
+}
+
+function searchKeyDown(e){
+  if(e.key==='Escape') clearSearch();
+  if(e.key==='Enter'){
+    const results=document.getElementById('searchResults');
+    if(results._matches&&results._matches.length) selectSearchResult(0);
+  }
+}
+
+// Close search results when clicking outside
+document.addEventListener('click', e=>{
+  if(!e.target.closest('.search-wrap')){
+    document.getElementById('searchResults').style.display='none';
+  }
+});
+
 // ── INIT ──────────────────────────────────────────────────────────────────────
 buildIdx();
+buildSearchIndex();
 render();
 </script>
 </body>
