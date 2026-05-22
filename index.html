@@ -830,11 +830,14 @@ const SHEET_ID = '1xV7MbVjCEgLbg_ULQmkGFZNTUcZS8eD49XDgxpVeEmg';
 async function loadSheetData() {
   try {
     // Use Google Visualization API - works with public sheets, no auth needed
-    const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json`;
+    const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=Territorio%20Ecuador%20-%20RT`;
     const res = await fetch(url);
     const text = await res.text();
     // Strip JSONP wrapper: google.visualization.Query.setResponse(...)
-    const json = JSON.parse(text.replace(/^[^{]*/, '').replace(/[^}]*$/, ''));
+    // Google Sheets returns: /*O_o*/\ngoogle.visualization.Query.setResponse({...});
+    const match = text.match(/google\.visualization\.Query\.setResponse\((.+)\);?\s*$/s);
+    if(!match) throw new Error('Could not parse response');
+    const json = JSON.parse(match[1]);
     return parseSheetData(json);
   } catch(e) {
     console.warn('Could not load sheet data, using embedded data:', e);
