@@ -355,6 +355,10 @@ function getZoneColor(zona){
 
 // ── RENDER ───────────────────────────────────────────────────────────────────
 function render(){
+  if(!PROV_GEO || !CANT_GEO || !QUITO_GEO) {
+    console.warn('GeoJSON not loaded yet');
+    return;
+  }
   const gP=document.getElementById('gProv');
   const gC=document.getElementById('gCant');
   const gZ=document.getElementById('gZone');
@@ -830,7 +834,7 @@ document.addEventListener('click', e=>{
 
 
 // ── GEO DATA LOADER ───────────────────────────────────────────────────────────
-const GEO_BASE = 'https://marcobenavides-png.github.io/Mapa-RT-RN-';
+const GEO_BASE = 'https://marcobenavides-png.github.io/Mapa-RT-RN-/';
 async function fetchGeo(filename) {
   const res = await fetch(GEO_BASE + filename);
   return await res.json();
@@ -960,26 +964,33 @@ function parseSheetData(json) {
 }
 
 async function initMap() {
-  // Load geo data and sheet data in parallel
-  document.getElementById('statbadge').textContent = 'Cargando...';
+  document.getElementById('statbadge').textContent = 'Cargando mapa...';
   
-  const [freshData] = await Promise.all([
-    loadSheetData(),
-    loadAllGeo(),
-  ]);
-  if (freshData && Object.keys(freshData).length > 0) {
-    // Replace embedded data with live sheet data
-    Object.assign(PROV_DATA, freshData);
-    document.getElementById('statbadge').textContent = '✓ Datos actualizados';
-    setTimeout(() => updateBadge(), 2000);
-  } else {
-    document.getElementById('statbadge').textContent = 'Datos locales';
-    setTimeout(() => updateBadge(), 1500);
-  }
-
+  // First load geo, then sheet data
+  await loadAllGeo();
+  
+  // Now render with embedded data while sheet loads
   buildIdx();
-  buildSearchIndex();
   render();
+  
+  // Load live sheet data in background
+  try {
+    const freshData = await loadSheetData();
+    if (freshData && Object.keys(freshData).length > 0) {
+      Object.assign(PROV_DATA, freshData);
+      document.getElementById('statbadge').textContent = '✓ Datos actualizados';
+      buildIdx();
+      render();
+      setTimeout(() => updateBadge(), 2000);
+    } else {
+      updateBadge();
+    }
+  } catch(e) {
+    console.warn('Sheet load failed:', e);
+    updateBadge();
+  }
+  
+  buildSearchIndex();
 }
 
 // ── INIT ──────────────────────────────────────────────────────────────────────
