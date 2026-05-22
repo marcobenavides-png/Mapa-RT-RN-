@@ -741,10 +741,122 @@ document.addEventListener('click', e=>{
   }
 });
 
+
+// ── DYNAMIC DATA FROM GOOGLE SHEETS ──────────────────────────────────────────
+const SHEET_ID = '1xV7MbVjCEgLbg_ULQmkGFZNTUcZS8eD49XDgxpVeEmg';
+
+async function loadSheetData() {
+  try {
+    // Use Google Visualization API - works with public sheets, no auth needed
+    const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json`;
+    const res = await fetch(url);
+    const text = await res.text();
+    // Strip JSONP wrapper: google.visualization.Query.setResponse(...)
+    const json = JSON.parse(text.replace(/^[^{]*/, '').replace(/[^}]*$/, ''));
+    return parseSheetData(json);
+  } catch(e) {
+    console.warn('Could not load sheet data, using embedded data:', e);
+    return null;
+  }
+}
+
+function parseSheetData(json) {
+  const cols = json.table.cols.map(c => c.label);
+  const rows = json.table.rows.map(r => {
+    const obj = {};
+    cols.forEach((col, i) => {
+      obj[col] = r.c[i]?.v || '';
+    });
+    return obj;
+  });
+
+  // Build province data
+  const provMap = {};
+  const qZones  = {};
+
+  rows.forEach(r => {
+    const prov = r['Provincia'];
+    if (!prov) return;
+
+    if (!provMap[prov]) {
+      provMap[prov] = {
+        region: r['Región Intaco'] || '',
+        vt: new Set(), art: new Set(),
+        jefVT: '', jefART: ''
+      };
+    }
+
+    const d   = provMap[prov];
+    if (r['Región Intaco']) d.region = r['Región Intaco'];
+    const vt  = (r['Vendedor Técnico '] || r['Vendedor Técnico'] || '').trim();
+    const art = (r['Asesor de Respaldo Técnico'] || '').trim();
+    const jvt = (r['Jefatura Vts'] || '').trim();
+    const jrt = (r['Jefatura Rts'] || '').trim();
+    if (vt)  d.vt.add(vt);
+    if (art) d.art.add(art);
+    if (jvt && !d.jefVT)  d.jefVT  = jvt;
+    if (jrt && !d.jefART) d.jefART = jrt;
+
+    // Quito zones
+    if (r['Cantón'] === 'Quito' && r['Zona']) {
+      const z = r['Zona'];
+      if (!qZones[z]) qZones[z] = { vt: new Set(), art: new Set(), jefVT:'', jefART:'' };
+      if (vt)  qZones[z].vt.add(vt);
+      if (art) qZones[z].art.add(art);
+      if (jvt && !qZones[z].jefVT)  qZones[z].jefVT  = jvt;
+      if (jrt && !qZones[z].jefART) qZones[z].jefART = jrt;
+    }
+  });
+
+  // Convert sets to arrays
+  const newProvData = {};
+  Object.entries(provMap).forEach(([prov, d]) => {
+    newProvData[prov] = {
+      region: d.region,
+      vt:     [...d.vt],
+      art:    [...d.art],
+      jefVT:  d.jefVT,
+      jefART: d.jefART,
+    };
+  });
+
+  // Update QUITO_GEO with fresh zone data
+  QUITO_GEO.features.forEach(f => {
+    const zona = f.properties.zona || '';
+    const zd   = qZones[zona];
+    if (zd) {
+      f.properties.vt     = [...zd.vt][0]   || '—';
+      f.properties.art    = [...zd.art][0]  || '—';
+      f.properties.jefVT  = zd.jefVT;
+      f.properties.jefART = zd.jefART;
+    }
+  });
+
+  return newProvData;
+}
+
+async function initMap() {
+  // Show loading indicator
+  document.getElementById('statbadge').textContent = 'Cargando datos...';
+
+  const freshData = await loadSheetData();
+  if (freshData && Object.keys(freshData).length > 0) {
+    // Replace embedded data with live sheet data
+    Object.assign(PROV_DATA, freshData);
+    document.getElementById('statbadge').textContent = '✓ Datos actualizados';
+    setTimeout(() => updateBadge(), 2000);
+  } else {
+    document.getElementById('statbadge').textContent = 'Datos locales';
+    setTimeout(() => updateBadge(), 1500);
+  }
+
+  buildIdx();
+  buildSearchIndex();
+  render();
+}
+
 // ── INIT ──────────────────────────────────────────────────────────────────────
-buildIdx();
-buildSearchIndex();
-render();
+initMap();
 </script>
 </body>
 </html>
