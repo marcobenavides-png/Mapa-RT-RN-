@@ -179,6 +179,7 @@ function checkPass(){
   if(val === atob('SU5UQUNPMjAyNg==')){
     document.getElementById('lock-screen').style.display='none';
     sessionStorage.setItem('rt_auth','1');
+    initMap();
   } else {
     err.classList.add('show');
     document.getElementById('lock-input').value='';
@@ -190,6 +191,7 @@ if(sessionStorage.getItem('rt_auth')==='1'){
   document.addEventListener('DOMContentLoaded',()=>{
     const ls=document.getElementById('lock-screen');
     if(ls) ls.style.display='none';
+    initMap();
   });
 }
 </script>
@@ -993,8 +995,7 @@ async function initMap() {
   buildSearchIndex();
 }
 
-// ── INIT ──────────────────────────────────────────────────────────────────────
-initMap();
+// ── INIT ── initMap() is called after password unlock above
 </script>
 </body>
 </html>
