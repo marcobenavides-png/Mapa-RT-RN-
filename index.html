@@ -657,24 +657,26 @@ function init(){
 }
 
 // ── GOOGLE SHEETS LIVE SYNC ───────────────────────────────────────────────────
-const SHEET_CSV = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRu-jSgCEQWWR7sY42dsLXO3zlifyqxccW-zCi6JA9AMprD4aOCViR6uJOVW89wrdEb_U85JqQlCs6F/pub?gid=1174218391&single=true&output=csv';
+const WEBAPP_URL = 'https://script.google.com/a/macros/intaco.com/s/AKfycbxfVOm9ebs4f9k3VP_4BlagZCrp1dgjS7YxjvH350BuI5EHRCVs2OXEsJJLRdnWCqGoVg/exec';
 
-function parseCSV(text) {
-  const lines = text.split('\n');
-  const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g,''));
-  return lines.slice(1).filter(l=>l.trim()).map(line => {
-    const vals = [];
-    let cur = '', inQ = false;
-    for(let i=0;i<line.length;i++){
-      if(line[i]==='"'){ inQ=!inQ; continue; }
-      if(line[i]===',' && !inQ){ vals.push(cur.trim()); cur=''; }
-      else cur+=line[i];
-    }
-    vals.push(cur.trim());
-    const obj={};
-    headers.forEach((h,i)=>obj[h]=vals[i]||'');
-    return obj;
-  });
+// Convierte filas de la Web App al formato que espera processSheetData
+function mapWebAppRows(rows) {
+  return rows.map(r => ({
+    'Provincia':                    r.provincia || '',
+    'Región Intaco':                r.region    || '',
+    'Cantón':                       r.canton    || '',
+    'Zona':                         r.zona      || '',
+    'Parroquia':                    r.parroquia || '',
+    'Vendedor Técnico ':            r.vt        || '',
+    'Asesor de Respaldo Técnico':   r.art       || '',
+    'Demostrador Tecnico':          r.dt        || '',
+    'Asesor de Proyectos':          r.ap        || '',
+    'Asesor Sac':                   r.sac       || '',
+    'Jefatura Vts':                 r.jefVT     || '',
+    'Jefatura Rt':                  '',
+    'Jefatura Ap':                  r.jefAP     || '',
+    'Jefatura SAC':                 '',
+  }));
 }
 
 function processSheetData(rows) {
@@ -790,11 +792,12 @@ async function syncFromSheet() {
   try {
     badge.textContent = '🔄 Sincronizando...';
     badge.style.color = '#f59e0b';
-    const resp = await fetch(SHEET_CSV + '&t=' + Date.now());
+    const resp = await fetch(WEBAPP_URL + '?t=' + Date.now());
     if(!resp.ok) throw new Error('HTTP ' + resp.status);
-    const text = await resp.text();
-    const rows = parseCSV(text);
-    if(rows.length < 10) throw new Error('Datos insuficientes');
+    const json = await resp.json();
+    if(json.error) throw new Error(json.error);
+    if(!json.rows || json.rows.length < 2) throw new Error('Datos insuficientes');
+    const rows = mapWebAppRows(json.rows);
     const count = processSheetData(rows);
     buildIdx();
     buildSrchIdx();
@@ -803,7 +806,7 @@ async function syncFromSheet() {
     badge.textContent = `✓ Actualizado ${now}`;
     badge.style.color = '#34d399';
     setTimeout(()=>{ badge.textContent='24 prov · 13 asignadas'; badge.style.color=''; }, 4000);
-    console.log(`Sheet sync OK: ${rows.length} filas, ${count} parroquias`);
+    console.log(`Sheet sync OK: ${json.total} filas, ${count} parroquias`);
   } catch(err) {
     badge.textContent = '⚠ Sin conexión (datos locales)';
     badge.style.color = '#f97316';
